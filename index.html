@@ -25,10 +25,7 @@
         .drop-zone {
             border: 2px dashed #9ca3af;
             background-color: rgba(255, 255, 255, 0.1);
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
-            gap: 8px;
-            align-content: start;
+            position: relative; /* Changed from grid to relative for absolute positioning of children */
             padding: 8px;
         }
         .fullscreen-btn {
@@ -188,8 +185,14 @@
 
             function loadPuzzle(index) {
                 leftPanShapes = [...puzzles[index].left];
-                // Map the initial right shapes to objects with an 'isInitial' flag
-                rightPanShapes = puzzles[index].right.map(shape => ({ ...shape, isInitial: true }));
+                // Map the initial right shapes to objects with an 'isInitial' flag and a default position
+                const panWidth = rightPan.offsetWidth;
+                rightPanShapes = puzzles[index].right.map(shape => ({ 
+                    ...shape, 
+                    isInitial: true,
+                    x: (panWidth / 2) - 32, // Center the initial shape
+                    y: 30 
+                }));
                 gameState = 'playing'; // Reset state for new puzzle
                 renderPans();
                 updateBalance();
@@ -208,6 +211,12 @@
                 shapeList.forEach((shapeData, index) => {
                     const shapeInfo = shapes.find(s => s.id === shapeData.id);
                     const shapeEl = createShapeElement(shapeInfo, false);
+
+                    // Position the shape absolutely within the pan
+                    shapeEl.style.position = 'absolute';
+                    shapeEl.style.left = `${shapeData.x || 0}px`;
+                    shapeEl.style.top = `${shapeData.y || 0}px`;
+
                     if (isInteractive) {
                         shapeEl.dataset.pan = 'right';
                         shapeEl.dataset.index = index;
@@ -317,8 +326,14 @@
                     rightPanShapes.splice(index, 1);
                 }
 
-                // Add the new shape to the pan's data array
-                rightPanShapes.push({ id: shapeId });
+                // Calculate drop position relative to the pan
+                const rect = rightPan.getBoundingClientRect();
+                const shapeSize = 64; // Approximate size of the shape container
+                const x = e.clientX - rect.left - (shapeSize / 2);
+                const y = e.clientY - rect.top - (shapeSize / 2);
+
+                // Add the new shape to the pan's data array with coordinates
+                rightPanShapes.push({ id: shapeId, x: x, y: y });
                 renderPans();
                 updateBalance();
                 draggedItem = null;
@@ -416,7 +431,11 @@
 
                 // 2. Add the shape to the pan if it was dropped there
                 if (rightPan.contains(dropTarget)) {
-                    rightPanShapes.push({ id: shapeId });
+                    const rect = rightPan.getBoundingClientRect();
+                    const shapeSize = 64; // Approximate size
+                    const x = touch.clientX - rect.left - (shapeSize / 2);
+                    const y = touch.clientY - rect.top - (shapeSize / 2);
+                    rightPanShapes.push({ id: shapeId, x: x, y: y });
                 } 
                 // Note: If a shape from the pan is dropped anywhere else, it is now removed.
 
@@ -456,7 +475,13 @@
             function resetCurrentPuzzle() {
                 gameState = 'playing';
                 // Reset right pan shapes to ONLY the initial ones for the puzzle
-                rightPanShapes = puzzles[currentPuzzleIndex].right.map(shape => ({ ...shape, isInitial: true }));
+                const panWidth = rightPan.offsetWidth;
+                rightPanShapes = puzzles[currentPuzzleIndex].right.map(shape => ({ 
+                    ...shape, 
+                    isInitial: true,
+                    x: (panWidth / 2) - 32, // Recalculate center
+                    y: 30
+                }));
                 renderPans();
                 updateBalance();
                 feedbackEl.textContent = '';
@@ -483,6 +508,7 @@
     </script>
 </body>
 </html>
+
 
 
 
