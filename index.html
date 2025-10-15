@@ -184,13 +184,25 @@
             }
 
             function loadPuzzle(index) {
-                leftPanShapes = [...puzzles[index].left];
+                // Position the shapes neatly in the left pan
+                const leftPanWidth = leftPan.offsetWidth;
+                const leftShapeCount = puzzles[index].left.length;
+                const leftShapeSize = 64; // Approximate size of the shape container
+                const leftTotalWidth = leftShapeCount * leftShapeSize;
+                const leftSpacing = (leftPanWidth - leftTotalWidth) / (leftShapeCount + 1);
+
+                leftPanShapes = puzzles[index].left.map((shape, i) => ({
+                    ...shape,
+                    x: leftSpacing * (i + 1) + (i * leftShapeSize),
+                    y: (leftPan.offsetHeight / 2) - (leftShapeSize / 2) // Center vertically
+                }));
+
                 // Map the initial right shapes to objects with an 'isInitial' flag and a default position
-                const panWidth = rightPan.offsetWidth;
+                const rightPanWidth = rightPan.offsetWidth;
                 rightPanShapes = puzzles[index].right.map(shape => ({ 
                     ...shape, 
                     isInitial: true,
-                    x: (panWidth / 2) - 32, // Center the initial shape
+                    x: (rightPanWidth / 2) - 32, // Center the initial shape
                     y: 30 
                 }));
                 gameState = 'playing'; // Reset state for new puzzle
@@ -508,6 +520,7 @@
     </script>
 </body>
 </html>
+
 
 
 
