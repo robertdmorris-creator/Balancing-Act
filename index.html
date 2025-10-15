@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balancing Act Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevents default touch behaviors like scrolling */
+        }
+        .balance-beam {
+            transition: transform 0.5s ease-in-out;
+        }
+        .shape {
+            cursor: grab;
+            user-select: none; /* Prevent text selection during drag */
+        }
+        .shape.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .drop-zone {
+            border: 2px dashed #9ca3af;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .fullscreen-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 50;
+        }
+        .shape-ghost {
+            position: absolute;
+            pointer-events: none; /* Allows clicks to pass through */
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+
+    <button id="fullscreen-btn" class="fullscreen-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    </button>
+
+    <div id="game-container" class="w-full max-w-6xl mx-auto flex flex-col items-center">
+        <!-- Title and Instructions -->
+        <div class="text-center mb-4">
+            <h1 class="text-4xl md:text-5xl font-bold text-blue-600 dark:text-blue-400">Balancing Act</h1>
+            <p id="instruction" class="text-lg md:text-xl mt-2 text-gray-600 dark:text-gray-400">Drag shapes to the right pan to balance the scale!</p>
+        </div>
+
+        <!-- Feedback Message -->
+        <div id="feedback" class="h-10 text-2xl font-semibold text-green-500 mb-4"></div>
+
+        <!-- Balance Scale -->
+        <div class="relative w-full flex flex-col items-center" style="height: 400px;">
+            <!-- Pans and weight displays -->
+            <div class="w-full flex justify-around absolute top-0 z-10">
+                <!-- Left Side -->
+                <div class="w-2/5 flex flex-col items-center">
+                    <div class="text-2xl font-bold bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg">
+                        Total: <span id="left-weight">0</span> lbs
+                    </div>
+                </div>
+                <!-- Right Side -->
+                <div class="w-2/5 flex flex-col items-center">
+                    <div class="text-2xl font-bold bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg">
+                        Total: <span id="right-weight">0</span> lbs
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beam and Fulcrum structure -->
+            <div class="absolute w-full flex justify-center" style="top: 150px;">
+                <div id="balance-beam" class="balance-beam w-11/12 md:w-4/5 h-4 bg-gray-700 dark:bg-gray-300 rounded-full relative flex justify-between items-center" style="transform-origin: center;">
+                    <!-- Left Pan -->
+                    <div id="left-pan" class="drop-zone absolute w-2/5 h-32 bg-gray-300 dark:bg-gray-800 rounded-lg flex flex-wrap justify-center items-center p-2" style="left: -5%; top: 2rem;"></div>
+                    <!-- Right Pan -->
+                    <div id="right-pan" class="drop-zone absolute w-2/5 h-32 bg-gray-300 dark:bg-gray-800 rounded-lg flex flex-wrap justify-center items-center p-2" style="right: -5%; top: 2rem;"></div>
+                </div>
+            </div>
+
+             <!-- Fulcrum (base) -->
+            <div class="absolute flex justify-center w-full" style="top: 158px;">
+                 <div class="w-0 h-0 
+                    border-l-[40px] border-l-transparent
+                    border-r-[40px] border-r-transparent
+                    border-b-[80px] border-b-gray-600 dark:border-b-gray-400">
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex space-x-4 mt-8 z-20">
+            <button id="check-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-md transition-transform transform hover:scale-105">Check</button>
+            <button id="reset-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-md transition-transform transform hover:scale-105">Reset</button>
+            <button id="next-puzzle-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-xl shadow-md transition-transform transform hover:scale-105">Next Puzzle</button>
+        </div>
+
+        <!-- Shape Bank -->
+        <div class="mt-8 w-full max-w-4xl p-4 bg-gray-200 dark:bg-gray-800 rounded-2xl shadow-inner">
+            <h2 class="text-center text-2xl font-semibold mb-4">Shapes Bank</h2>
+            <div id="shape-bank" class="flex flex-wrap justify-center items-center gap-4">
+                <!-- Shapes will be injected here by JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM ELEMENTS ---
+            const leftPan = document.getElementById('left-pan');
+            const rightPan = document.getElementById('right-pan');
+            const leftWeightEl = document.getElementById('left-weight');
+            const rightWeightEl = document.getElementById('right-weight');
+            const balanceBeam = document.getElementById('balance-beam');
+            const shapeBank = document.getElementById('shape-bank');
+            const feedbackEl = document.getElementById('feedback');
+            const checkBtn = document.getElementById('check-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const nextPuzzleBtn = document.getElementById('next-puzzle-btn');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const instructionEl = document.getElementById('instruction');
+
+            // --- SHAPE DATA ---
+            const shapes = [
+                { id: 1, name: 'Circle', weight: 2, color: '#9333ea', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="45" fill="currentColor"/></svg>' },
+                { id: 2, name: 'Square', weight: 3, color: '#16a34a', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><rect x="10" y="10" width="80" height="80" fill="currentColor"/></svg>' },
+                { id: 3, name: 'Trapezoid', weight: 4, color: '#ea580c', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="10,85 90,85 75,15 25,15" fill="currentColor"/></svg>' },
+                { id: 4, name: 'Triangle', weight: 5, color: '#2563eb', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,15 95,85 5,85" fill="currentColor"/></svg>' },
+                { id: 5, name: 'Pentagon', weight: 5, color: '#10b981', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,5 95,40 78,95 22,95 5,40" fill="currentColor"/></svg>' },
+                { id: 6, name: 'Sun', weight: 6, color: '#facc15', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="30" fill="currentColor"/><path d="M50,0 L50,15 M50,85 L50,100 M0,50 L15,50 M85,50 L100,50 M15,15 L25,25 M75,75 L85,85 M15,85 L25,75 M75,25 L85,15" stroke="currentColor" stroke-width="8"/></svg>' }
+            ];
+
+            // --- PUZZLE DATA ---
+            const puzzles = [
+                { left: [{ id: 4 }, {id: 2}], right: [] }, // 5 + 3 = 8
+                { left: [{ id: 6 }, {id: 1}], right: [] }, // 6 + 2 = 8
+                { left: [{ id: 3 }, { id: 3 }, {id: 1}], right: [] }, // 4 + 4 + 2 = 10
+                { left: [{ id: 4 }, { id: 4 }, {id: 1}], right: [] }, // 5 + 5 + 2 = 12
+                { left: [{ id: 6 }, { id: 6 }], right: [] }, // 6 + 6 = 12
+                { left: [{ id: 5 }, { id: 2 }, { id: 3 }], right: [] } // 5 + 3 + 4 = 12
+            ];
+            let currentPuzzleIndex = 0;
+
+            // --- GAME STATE ---
+            let leftPanShapes = [];
+            let rightPanShapes = [];
+
+            // --- INITIALIZATION ---
+            function init() {
+                populateShapeBank();
+                loadPuzzle(currentPuzzleIndex);
+                addEventListeners();
+            }
+
+            function populateShapeBank() {
+                shapeBank.innerHTML = '';
+                shapes.forEach(shape => {
+                    const shapeEl = createShapeElement(shape);
+                    shapeBank.appendChild(shapeEl);
+                });
+            }
+
+            function createShapeElement(shape) {
+                const el = document.createElement('div');
+                el.className = 'shape flex flex-col items-center p-2 rounded-lg bg-white dark:bg-gray-700 shadow';
+                el.style.color = shape.color;
+                el.draggable = true;
+                el.dataset.shapeId = shape.id;
+                el.innerHTML = `
+                    ${shape.svg}
+                    <span class="font-bold text-lg text-gray-800 dark:text-gray-200">${shape.weight} lbs</span>
+                `;
+                return el;
+            }
+
+            function loadPuzzle(index) {
+                leftPanShapes = [...puzzles[index].left];
+                rightPanShapes = [...puzzles[index].right];
+                renderPans();
+                updateBalance();
+                feedbackEl.textContent = '';
+                instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
+            }
+
+            // --- RENDERING ---
+            function renderPans() {
+                renderPan(leftPan, leftPanShapes, false); // Left pan not modifiable by player
+                renderPan(rightPan, rightPanShapes, true); // Right pan is modifiable
+            }
+            
+            function renderPan(panEl, shapeList, isInteractive) {
+                panEl.innerHTML = '';
+                shapeList.forEach((shapeData, index) => {
+                    const shapeInfo = shapes.find(s => s.id === shapeData.id);
+                    const shapeEl = createShapeElement(shapeInfo);
+                    if (isInteractive) {
+                        shapeEl.dataset.pan = 'right';
+                        shapeEl.dataset.index = index;
+                    } else {
+                        shapeEl.draggable = false;
+                        shapeEl.style.cursor = 'default';
+                    }
+                    panEl.appendChild(shapeEl);
+                });
+            }
+
+            // --- BALANCE LOGIC ---
+            function calculateWeight(shapeList) {
+                return shapeList.reduce((total, shapeData) => {
+                    const shapeInfo = shapes.find(s => s.id === shapeData.id);
+                    return total + (shapeInfo ? shapeInfo.weight : 0);
+                }, 0);
+            }
+
+            function updateBalance() {
+                const leftWeight = calculateWeight(leftPanShapes);
+                const rightWeight = calculateWeight(rightPanShapes);
+
+                leftWeightEl.textContent = leftWeight;
+                rightWeightEl.textContent = rightWeight;
+
+                const diff = rightWeight - leftWeight;
+                const maxWeight = 30; // An arbitrary max for rotation scaling
+                const rotation = Math.max(-15, Math.min(15, (diff / maxWeight) * 15));
+                
+                balanceBeam.style.transform = `rotate(${rotation}deg)`;
+            }
+
+            // --- EVENT LISTENERS ---
+            function addEventListeners() {
+                // Drag and Drop for Desktop
+                document.addEventListener('dragstart', handleDragStart);
+                rightPan.addEventListener('dragover', handleDragOver);
+                rightPan.addEventListener('drop', handleDrop);
+                shapeBank.addEventListener('dragover', handleDragOver);
+                shapeBank.addEventListener('drop', handleReturnToBank);
+
+                // Touch events for Mobile/Tablets
+                document.addEventListener('touchstart', handleTouchStart, { passive: false });
+                document.addEventListener('touchmove', handleTouchMove, { passive: false });
+                document.addEventListener('touchend', handleTouchEnd);
+
+                // Buttons
+                checkBtn.addEventListener('click', checkAnswer);
+                resetBtn.addEventListener('click', resetCurrentPuzzle);
+                nextPuzzleBtn.addEventListener('click', nextPuzzle);
+                fullscreenBtn.addEventListener('click', toggleFullScreen);
+            }
+            
+            // --- DRAG & DROP HANDLERS (MOUSE) ---
+            let draggedItem = null;
+
+            function handleDragStart(e) {
+                if (!e.target.classList.contains('shape')) return;
+                draggedItem = e.target;
+                setTimeout(() => e.target.style.display = "none", 0);
+                e.dataTransfer.setData('text/plain', e.target.dataset.shapeId);
+            }
+
+            function handleDragOver(e) {
+                e.preventDefault();
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                const shapeId = parseInt(e.dataTransfer.getData('text/plain'));
+                if (draggedItem) {
+                    draggedItem.style.display = 'flex';
+                    if (draggedItem.dataset.pan === 'right') { // moving from pan to pan (not implemented, remove)
+                        const index = parseInt(draggedItem.dataset.index);
+                        rightPanShapes.splice(index, 1);
+                    }
+                }
+                rightPanShapes.push({ id: shapeId });
+                renderPans();
+                updateBalance();
+                draggedItem = null;
+            }
+
+            function handleReturnToBank(e) {
+                e.preventDefault();
+                if (draggedItem && draggedItem.dataset.pan === 'right') {
+                     draggedItem.style.display = 'flex';
+                     const index = parseInt(draggedItem.dataset.index);
+                     rightPanShapes.splice(index, 1);
+                     renderPans();
+                     updateBalance();
+                }
+                draggedItem = null;
+            }
+            
+            // --- TOUCH HANDLERS ---
+            let touchDraggedItem = null;
+            let ghostEl = null;
+
+            function handleTouchStart(e) {
+                const target = e.target.closest('.shape');
+                if (!target) return;
+                
+                e.preventDefault();
+                touchDraggedItem = target;
+                
+                // Create ghost element for visual feedback
+                ghostEl = target.cloneNode(true);
+                ghostEl.classList.add('shape-ghost');
+                document.body.appendChild(ghostEl);
+
+                const touch = e.targetTouches[0];
+                moveGhost(touch.pageX, touch.pageY);
+                
+                target.classList.add('dragging');
+            }
+
+            function handleTouchMove(e) {
+                if (!touchDraggedItem) return;
+                e.preventDefault();
+                const touch = e.targetTouches[0];
+                moveGhost(touch.pageX, touch.pageY);
+            }
+            
+            function moveGhost(x, y) {
+                 if(ghostEl) {
+                    ghostEl.style.left = `${x - ghostEl.offsetWidth / 2}px`;
+                    ghostEl.style.top = `${y - ghostEl.offsetHeight / 2}px`;
+                 }
+            }
+
+            function handleTouchEnd(e) {
+                if (!touchDraggedItem) return;
+
+                const touch = e.changedTouches[0];
+                const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+                
+                const shapeId = parseInt(touchDraggedItem.dataset.shapeId);
+                
+                // Dropped on the right pan
+                if (rightPan.contains(dropTarget)) {
+                    if (touchDraggedItem.dataset.pan === 'right') { // Reordering, not needed for this game
+                    } else { // From bank
+                        rightPanShapes.push({ id: shapeId });
+                    }
+                } 
+                // Dropped back on the bank (or anywhere else)
+                else {
+                    if (touchDraggedItem.dataset.pan === 'right') {
+                        const index = parseInt(touchDraggedItem.dataset.index);
+                        rightPanShapes.splice(index, 1);
+                    }
+                }
+                
+                touchDraggedItem.classList.remove('dragging');
+                if (ghostEl) {
+                    ghostEl.remove();
+                    ghostEl = null;
+                }
+                touchDraggedItem = null;
+
+                renderPans();
+                updateBalance();
+            }
+
+            // --- GAME ACTIONS ---
+            function checkAnswer() {
+                const leftWeight = calculateWeight(leftPanShapes);
+                const rightWeight = calculateWeight(rightPanShapes);
+
+                if (leftWeight === 0) {
+                     feedbackEl.textContent = "Load a puzzle first!";
+                     feedbackEl.className = 'h-10 text-2xl font-semibold text-yellow-500 mb-4';
+                } else if (leftWeight === rightWeight) {
+                    feedbackEl.textContent = 'Balanced! Great job!';
+                    feedbackEl.className = 'h-10 text-2xl font-semibold text-green-500 mb-4';
+                    instructionEl.textContent = 'Click "Next Puzzle" to continue.';
+                } else {
+                    feedbackEl.textContent = 'Not balanced yet. Keep trying!';
+                    feedbackEl.className = 'h-10 text-2xl font-semibold text-red-500 mb-4';
+                }
+            }
+
+            function resetCurrentPuzzle() {
+                rightPanShapes = [];
+                renderPans();
+                updateBalance();
+                feedbackEl.textContent = '';
+            }
+            
+            function nextPuzzle() {
+                currentPuzzleIndex = (currentPuzzleIndex + 1) % puzzles.length;
+                loadPuzzle(currentPuzzleIndex);
+            }
+            
+            function toggleFullScreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
