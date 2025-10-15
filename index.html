@@ -127,22 +127,24 @@
 
             // --- SHAPE DATA ---
             const shapes = [
-                { id: 1, name: 'Circle', weight: 2, color: '#9333ea', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="45" fill="currentColor"/></svg>' },
+                { id: 1, name: 'Triangle', weight: 5, color: '#2563eb', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,15 95,85 5,85" fill="currentColor"/></svg>' },
                 { id: 2, name: 'Square', weight: 3, color: '#16a34a', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><rect x="10" y="10" width="80" height="80" fill="currentColor"/></svg>' },
-                { id: 3, name: 'Trapezoid', weight: 4, color: '#ea580c', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="10,85 90,85 75,15 25,15" fill="currentColor"/></svg>' },
-                { id: 4, name: 'Triangle', weight: 5, color: '#2563eb', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,15 95,85 5,85" fill="currentColor"/></svg>' },
-                { id: 5, name: 'Pentagon', weight: 5, color: '#10b981', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,5 95,40 78,95 22,95 5,40" fill="currentColor"/></svg>' },
-                { id: 6, name: 'Sun', weight: 6, color: '#facc15', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="30" fill="currentColor"/><path d="M50,0 L50,15 M50,85 L50,100 M0,50 L15,50 M85,50 L100,50 M15,15 L25,25 M75,75 L85,85 M15,85 L25,75 M75,25 L85,15" stroke="currentColor" stroke-width="8"/></svg>' }
+                { id: 3, name: 'Purple Circle', weight: 2, color: '#9333ea', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="45" fill="currentColor"/></svg>' },
+                { id: 4, name: 'Trapezoid', weight: 4, color: '#ea580c', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="10,85 90,85 75,15 25,15" fill="currentColor"/></svg>' },
+                { id: 5, name: 'Yellow Circle', weight: 6, color: '#facc15', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><circle cx="50" cy="50" r="45" fill="currentColor"/></svg>' },
+                { id: 6, name: 'Pentagon', weight: 5, color: '#10b981', svg: '<svg viewBox="0 0 100 100" class="w-12 h-12"><polygon points="50,5 95,40 78,95 22,95 5,40" fill="currentColor"/></svg>' }
             ];
 
             // --- PUZZLE DATA ---
             const puzzles = [
-                { left: [{ id: 4 }, {id: 2}], right: [] }, // 5 + 3 = 8
-                { left: [{ id: 6 }, {id: 1}], right: [] }, // 6 + 2 = 8
-                { left: [{ id: 3 }, { id: 3 }, {id: 1}], right: [] }, // 4 + 4 + 2 = 10
-                { left: [{ id: 4 }, { id: 4 }, {id: 1}], right: [] }, // 5 + 5 + 2 = 12
-                { left: [{ id: 6 }, { id: 6 }], right: [] }, // 6 + 6 = 12
-                { left: [{ id: 5 }, { id: 2 }, { id: 3 }], right: [] } // 5 + 3 + 4 = 12
+                // Puzzles inspired by the provided PDF
+                { left: [{ id: 1 }, {id: 2}, {id: 2}], right: [] }, // 5 + 3 + 3 = 11 lbs
+                { left: [{ id: 4 }, {id: 4}, {id: 5}], right: [] }, // 4 + 4 + 6 = 14 lbs
+                // Additional puzzles for variety
+                { left: [{ id: 6 }, {id: 1}], right: [] }, // 5 + 5 = 10 lbs
+                { left: [{ id: 5 }, {id: 2}, {id: 2}], right: [] }, // 6 + 3 + 3 = 12 lbs
+                { left: [{ id: 4 }, {id: 4}, {id: 4}], right: [] }, // 4 + 4 + 4 = 12 lbs
+                { left: [{ id: 1 }, {id: 3}, {id: 6}], right: [] } // 5 + 2 + 5 = 12 lbs
             ];
             let currentPuzzleIndex = 0;
 
@@ -409,3 +411,4 @@
     </script>
 </body>
 </html>
+
