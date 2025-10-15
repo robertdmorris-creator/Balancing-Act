@@ -156,6 +156,7 @@
             // --- GAME STATE ---
             let leftPanShapes = [];
             let rightPanShapes = [];
+            let gameState = 'playing'; // Can be 'playing', 'correct', or 'incorrect'
 
             // --- INITIALIZATION ---
             function init() {
@@ -188,6 +189,7 @@
             function loadPuzzle(index) {
                 leftPanShapes = [...puzzles[index].left];
                 rightPanShapes = [...puzzles[index].right];
+                gameState = 'playing'; // Reset state for new puzzle
                 renderPans();
                 updateBalance();
                 feedbackEl.textContent = '';
@@ -229,7 +231,12 @@
                 const rightWeight = calculateWeight(rightPanShapes);
 
                 leftWeightEl.textContent = leftWeight;
-                rightWeightEl.textContent = rightWeight;
+                
+                if (gameState === 'correct') {
+                    rightWeightEl.textContent = rightWeight;
+                } else {
+                    rightWeightEl.textContent = '?';
+                }
 
                 const diff = rightWeight - leftWeight;
                 const maxWeight = 30; // An arbitrary max for rotation scaling
@@ -265,7 +272,10 @@
             function handleDragStart(e) {
                 if (!e.target.classList.contains('shape')) return;
                 draggedItem = e.target;
-                setTimeout(() => e.target.style.display = "none", 0);
+                // Only hide the shape if it's being dragged from the pan
+                if (draggedItem.dataset.pan === 'right') {
+                    setTimeout(() => draggedItem.style.display = "none", 0);
+                }
                 e.dataTransfer.setData('text/plain', e.target.dataset.shapeId);
             }
 
@@ -276,13 +286,22 @@
             function handleDrop(e) {
                 e.preventDefault();
                 const shapeId = parseInt(e.dataTransfer.getData('text/plain'));
-                if (draggedItem) {
-                    draggedItem.style.display = 'flex';
-                    if (draggedItem.dataset.pan === 'right') { // moving from pan to pan (not implemented, remove)
-                        const index = parseInt(draggedItem.dataset.index);
-                        rightPanShapes.splice(index, 1);
-                    }
+                if (!shapeId) return;
+
+                // If user is modifying after a check, reset the state
+                if (gameState !== 'playing') {
+                    gameState = 'playing';
+                    feedbackEl.textContent = '';
+                    instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
                 }
+
+                // If an item was dragged from the pan, remove its old instance to prevent duplication.
+                if (draggedItem && draggedItem.dataset.pan === 'right') {
+                    const index = parseInt(draggedItem.dataset.index);
+                    rightPanShapes.splice(index, 1);
+                }
+
+                // Add the new shape to the pan's data array
                 rightPanShapes.push({ id: shapeId });
                 renderPans();
                 updateBalance();
@@ -291,8 +310,14 @@
 
             function handleReturnToBank(e) {
                 e.preventDefault();
+                // This acts as a "trash" area. If a shape from the pan is dropped here, it's removed.
                 if (draggedItem && draggedItem.dataset.pan === 'right') {
-                     draggedItem.style.display = 'flex';
+                     // If user is modifying after a check, reset the state
+                    if (gameState !== 'playing') {
+                        gameState = 'playing';
+                        feedbackEl.textContent = '';
+                        instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
+                    }
                      const index = parseInt(draggedItem.dataset.index);
                      rightPanShapes.splice(index, 1);
                      renderPans();
@@ -309,6 +334,13 @@
                 const target = e.target.closest('.shape');
                 if (!target) return;
                 
+                // If user is touching a shape to modify their answer, reset the state
+                if (gameState !== 'playing') {
+                    gameState = 'playing';
+                    feedbackEl.textContent = '';
+                    instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
+                }
+                
                 e.preventDefault();
                 touchDraggedItem = target;
                 
@@ -320,7 +352,10 @@
                 const touch = e.targetTouches[0];
                 moveGhost(touch.pageX, touch.pageY);
                 
-                target.classList.add('dragging');
+                // Only make the original shape transparent if it's being dragged from the pan
+                if (touchDraggedItem.dataset.pan === 'right') {
+                    target.classList.add('dragging');
+                }
             }
 
             function handleTouchMove(e) {
@@ -340,26 +375,28 @@
             function handleTouchEnd(e) {
                 if (!touchDraggedItem) return;
 
+                // Hide the ghost so we can see what element is underneath the drop point
+                if(ghostEl) ghostEl.style.display = 'none';
+
                 const touch = e.changedTouches[0];
                 const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
                 
                 const shapeId = parseInt(touchDraggedItem.dataset.shapeId);
-                
-                // Dropped on the right pan
-                if (rightPan.contains(dropTarget)) {
-                    if (touchDraggedItem.dataset.pan === 'right') { // Reordering, not needed for this game
-                    } else { // From bank
-                        rightPanShapes.push({ id: shapeId });
-                    }
-                } 
-                // Dropped back on the bank (or anywhere else)
-                else {
-                    if (touchDraggedItem.dataset.pan === 'right') {
-                        const index = parseInt(touchDraggedItem.dataset.index);
-                        rightPanShapes.splice(index, 1);
-                    }
+                const cameFromPan = touchDraggedItem.dataset.pan === 'right';
+
+                // 1. Remove the shape from its original place if it came from the pan
+                if (cameFromPan) {
+                    const index = parseInt(touchDraggedItem.dataset.index);
+                    rightPanShapes.splice(index, 1);
                 }
-                
+
+                // 2. Add the shape to the pan if it was dropped there
+                if (rightPan.contains(dropTarget)) {
+                    rightPanShapes.push({ id: shapeId });
+                } 
+                // Note: If a shape from the pan is dropped anywhere else, it is now removed.
+
+                // --- Cleanup ---
                 touchDraggedItem.classList.remove('dragging');
                 if (ghostEl) {
                     ghostEl.remove();
@@ -380,20 +417,25 @@
                      feedbackEl.textContent = "Load a puzzle first!";
                      feedbackEl.className = 'h-10 text-2xl font-semibold text-yellow-500 mb-4';
                 } else if (leftWeight === rightWeight) {
+                    gameState = 'correct';
                     feedbackEl.textContent = 'Balanced! Great job!';
                     feedbackEl.className = 'h-10 text-2xl font-semibold text-green-500 mb-4';
                     instructionEl.textContent = 'Click "Next Puzzle" to continue.';
                 } else {
+                    gameState = 'incorrect';
                     feedbackEl.textContent = 'Not balanced yet. Keep trying!';
                     feedbackEl.className = 'h-10 text-2xl font-semibold text-red-500 mb-4';
                 }
+                updateBalance();
             }
 
             function resetCurrentPuzzle() {
+                gameState = 'playing';
                 rightPanShapes = [];
                 renderPans();
                 updateBalance();
                 feedbackEl.textContent = '';
+                instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
             }
             
             function nextPuzzle() {
@@ -416,5 +458,7 @@
     </script>
 </body>
 </html>
+
+
 
 
