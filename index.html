@@ -142,14 +142,14 @@
 
             // --- PUZZLE DATA ---
             const puzzles = [
-                // Puzzles inspired by the provided PDF
-                { left: [{ id: 1 }, {id: 2}, {id: 2}], right: [] }, // 5 + 3 + 3 = 11 lbs
-                { left: [{ id: 4 }, {id: 4}, {id: 5}], right: [] }, // 4 + 4 + 6 = 14 lbs
-                // Additional puzzles for variety
-                { left: [{ id: 6 }, {id: 1}], right: [] }, // 5 + 5 = 10 lbs
-                { left: [{ id: 5 }, {id: 2}, {id: 2}], right: [] }, // 6 + 3 + 3 = 12 lbs
-                { left: [{ id: 4 }, {id: 4}, {id: 4}], right: [] }, // 4 + 4 + 4 = 12 lbs
-                { left: [{ id: 1 }, {id: 3}, {id: 6}], right: [] } // 5 + 2 + 5 = 12 lbs
+                // Puzzles are now designed to have a starting shape on the right side.
+                // Students must add shapes to equal the left side's total weight.
+                { left: [{ id: 1 }, { id: 2 }, { id: 2 }], right: [{ id: 5 }] }, // 11 lbs. Right starts with 6. Need to add 5.
+                { left: [{ id: 4 }, { id: 4 }, { id: 5 }], right: [{ id: 1 }] }, // 14 lbs. Right starts with 5. Need to add 9.
+                { left: [{ id: 6 }, { id: 1 }], right: [{ id: 4 }] },             // 10 lbs. Right starts with 4. Need to add 6.
+                { left: [{ id: 5 }, { id: 2 }, { id: 2 }], right: [{ id: 3 }] }, // 12 lbs. Right starts with 2. Need to add 10.
+                { left: [{ id: 4 }, { id: 4 }, { id: 4 }], right: [{ id: 6 }] }, // 12 lbs. Right starts with 5. Need to add 7.
+                { left: [{ id: 1 }, { id: 3 }, { id: 6 }], right: [{ id: 2 }] }  // 12 lbs. Right starts with 3. Need to add 9.
             ];
             let currentPuzzleIndex = 0;
 
@@ -188,7 +188,8 @@
 
             function loadPuzzle(index) {
                 leftPanShapes = [...puzzles[index].left];
-                rightPanShapes = [...puzzles[index].right];
+                // Map the initial right shapes to objects with an 'isInitial' flag
+                rightPanShapes = puzzles[index].right.map(shape => ({ ...shape, isInitial: true }));
                 gameState = 'playing'; // Reset state for new puzzle
                 renderPans();
                 updateBalance();
@@ -210,6 +211,12 @@
                     if (isInteractive) {
                         shapeEl.dataset.pan = 'right';
                         shapeEl.dataset.index = index;
+                        // If the shape is part of the initial puzzle, make it non-draggable
+                        if (shapeData.isInitial) {
+                            shapeEl.draggable = false;
+                            shapeEl.style.cursor = 'not-allowed';
+                            shapeEl.style.border = '2px solid #9ca3af'; // Add a border to distinguish it
+                        }
                     } else {
                         shapeEl.draggable = false;
                         shapeEl.style.cursor = 'default';
@@ -272,8 +279,17 @@
             function handleDragStart(e) {
                 if (!e.target.classList.contains('shape')) return;
                 draggedItem = e.target;
-                // Only hide the shape if it's being dragged from the pan
+                
+                // Check if the item being dragged is from the right pan
                 if (draggedItem.dataset.pan === 'right') {
+                    const index = parseInt(draggedItem.dataset.index);
+                    // Prevent dragging if it's an initial shape
+                    if (rightPanShapes[index] && rightPanShapes[index].isInitial) {
+                        e.preventDefault();
+                        draggedItem = null;
+                        return;
+                    }
+                    // Only hide the shape if it's being dragged from the pan
                     setTimeout(() => draggedItem.style.display = "none", 0);
                 }
                 e.dataTransfer.setData('text/plain', e.target.dataset.shapeId);
@@ -333,6 +349,14 @@
             function handleTouchStart(e) {
                 const target = e.target.closest('.shape');
                 if (!target) return;
+
+                // Prevent dragging initial shapes on the right pan
+                if (target.dataset.pan === 'right') {
+                    const index = parseInt(target.dataset.index);
+                    if (rightPanShapes[index] && rightPanShapes[index].isInitial) {
+                        return; // Do not initiate a drag for this element
+                    }
+                }
                 
                 // If user is touching a shape to modify their answer, reset the state
                 if (gameState !== 'playing') {
@@ -431,7 +455,8 @@
 
             function resetCurrentPuzzle() {
                 gameState = 'playing';
-                rightPanShapes = [];
+                // Reset right pan shapes to ONLY the initial ones for the puzzle
+                rightPanShapes = puzzles[currentPuzzleIndex].right.map(shape => ({ ...shape, isInitial: true }));
                 renderPans();
                 updateBalance();
                 feedbackEl.textContent = '';
@@ -458,6 +483,7 @@
     </script>
 </body>
 </html>
+
 
 
 
