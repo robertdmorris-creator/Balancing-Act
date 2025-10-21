@@ -404,14 +404,16 @@
             function handleTouchEnd(e) {
                 if (!touchDraggedItem) return;
 
+                // We get the touch coordinates first
+                const touch = e.changedTouches[0];
+                const dropX = touch.clientX;
+                const dropY = touch.clientY;
+
+                // Then hide the ghost element to clean up the view
                 if(ghostEl) ghostEl.style.display = 'none';
 
-                const touch = e.changedTouches[0];
-                const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-
                 const shapeId = parseInt(touchDraggedItem.dataset.shapeId);
-                
-                // --- THIS IS THE FIX ---
+
                 // Check if shapeId is a valid number before proceeding
                 if (isNaN(shapeId)) {
                     // Cleanup if the drag was invalid for any reason
@@ -423,23 +425,32 @@
                     touchDraggedItem = null;
                     return;
                 }
-                // --- END OF FIX ---
 
                 const cameFromPan = touchDraggedItem.dataset.pan === 'right';
 
+                // If the shape came from the pan, remove its old instance
                 if (cameFromPan) {
                     const index = parseInt(touchDraggedItem.dataset.index);
                     rightPanShapes.splice(index, 1);
                 }
 
-                if (rightPan.contains(dropTarget)) {
-                    const rect = rightPan.getBoundingClientRect();
-                    const shapeSize = 64;
-                    const x = touch.clientX - rect.left - (shapeSize / 2);
-                    const y = touch.clientY - rect.top - (shapeSize / 2);
+                // --- NEW, MORE RELIABLE DROP DETECTION ---
+                // Get the dimensions and position of the drop zone
+                const rightPanRect = rightPan.getBoundingClientRect();
+
+                // Check if the drop coordinates are inside the pan's rectangle
+                if (dropX >= rightPanRect.left && dropX <= rightPanRect.right &&
+                    dropY >= rightPanRect.top && dropY <= rightPanRect.bottom) {
+
+                    const shapeSize = 64; // Approximate size
+                    // Calculate position relative to the pan
+                    const x = dropX - rightPanRect.left - (shapeSize / 2);
+                    const y = dropY - rightPanRect.top - (shapeSize / 2);
                     rightPanShapes.push({ id: shapeId, x: x, y: y });
                 }
+                // --- END OF NEW LOGIC ---
 
+                // Standard cleanup
                 touchDraggedItem.classList.remove('dragging');
                 if (ghostEl) {
                     ghostEl.remove();
@@ -509,3 +520,4 @@
     </script>
 </body>
 </html>
+
