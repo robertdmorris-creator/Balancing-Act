@@ -87,7 +87,7 @@
 
              <!-- Fulcrum (base) -->
             <div class="absolute flex justify-center w-full" style="top: 108px;">
-                 <div class="w-0 h-0 
+                 <div class="w-0 h-0
                     border-l-[40px] border-l-transparent
                     border-r-[40px] border-r-transparent
                     border-b-[80px] border-b-gray-600 dark:border-b-gray-400">
@@ -139,8 +139,6 @@
 
             // --- PUZZLE DATA ---
             const puzzles = [
-                // Puzzles are now designed to have a starting shape on the right side.
-                // Students must add shapes to equal the left side's total weight.
                 { left: [{ id: 1 }, { id: 2 }, { id: 2 }], right: [{ id: 5 }] }, // 11 lbs. Right starts with 6. Need to add 5.
                 { left: [{ id: 4 }, { id: 4 }, { id: 5 }], right: [{ id: 1 }] }, // 14 lbs. Right starts with 5. Need to add 9.
                 { left: [{ id: 6 }, { id: 1 }], right: [{ id: 4 }] },             // 10 lbs. Right starts with 4. Need to add 6.
@@ -184,28 +182,26 @@
             }
 
             function loadPuzzle(index) {
-                // Position the shapes neatly in the left pan
                 const leftPanWidth = leftPan.offsetWidth;
                 const leftShapeCount = puzzles[index].left.length;
-                const leftShapeSize = 64; // Approximate size of the shape container
+                const leftShapeSize = 64;
                 const leftTotalWidth = leftShapeCount * leftShapeSize;
                 const leftSpacing = (leftPanWidth - leftTotalWidth) / (leftShapeCount + 1);
 
                 leftPanShapes = puzzles[index].left.map((shape, i) => ({
                     ...shape,
                     x: leftSpacing * (i + 1) + (i * leftShapeSize),
-                    y: (leftPan.offsetHeight / 2) - (leftShapeSize / 2) // Center vertically
+                    y: (leftPan.offsetHeight / 2) - (leftShapeSize / 2)
                 }));
 
-                // Map the initial right shapes to objects with an 'isInitial' flag and a default position
                 const rightPanWidth = rightPan.offsetWidth;
-                rightPanShapes = puzzles[index].right.map(shape => ({ 
-                    ...shape, 
+                rightPanShapes = puzzles[index].right.map(shape => ({
+                    ...shape,
                     isInitial: true,
-                    x: (rightPanWidth / 2) - 32, // Center the initial shape
-                    y: 30 
+                    x: (rightPanWidth / 2) - 32,
+                    y: 30
                 }));
-                gameState = 'playing'; // Reset state for new puzzle
+                gameState = 'playing';
                 renderPans();
                 updateBalance();
                 feedbackEl.textContent = '';
@@ -214,17 +210,16 @@
 
             // --- RENDERING ---
             function renderPans() {
-                renderPan(leftPan, leftPanShapes, false); // Left pan not modifiable by player
-                renderPan(rightPan, rightPanShapes, true); // Right pan is modifiable
+                renderPan(leftPan, leftPanShapes, false);
+                renderPan(rightPan, rightPanShapes, true);
             }
-            
+
             function renderPan(panEl, shapeList, isInteractive) {
                 panEl.innerHTML = '';
                 shapeList.forEach((shapeData, index) => {
                     const shapeInfo = shapes.find(s => s.id === shapeData.id);
                     const shapeEl = createShapeElement(shapeInfo, false);
 
-                    // Position the shape absolutely within the pan
                     shapeEl.style.position = 'absolute';
                     shapeEl.style.left = `${shapeData.x || 0}px`;
                     shapeEl.style.top = `${shapeData.y || 0}px`;
@@ -232,11 +227,10 @@
                     if (isInteractive) {
                         shapeEl.dataset.pan = 'right';
                         shapeEl.dataset.index = index;
-                        // If the shape is part of the initial puzzle, make it non-draggable
                         if (shapeData.isInitial) {
                             shapeEl.draggable = false;
                             shapeEl.style.cursor = 'not-allowed';
-                            shapeEl.style.border = '2px solid #9ca3af'; // Add a border to distinguish it
+                            shapeEl.style.border = '2px solid #9ca3af';
                         }
                     } else {
                         shapeEl.draggable = false;
@@ -259,7 +253,7 @@
                 const rightWeight = calculateWeight(rightPanShapes);
 
                 leftWeightEl.textContent = leftWeight;
-                
+
                 if (gameState === 'correct') {
                     rightWeightEl.textContent = rightWeight;
                 } else {
@@ -267,50 +261,44 @@
                 }
 
                 const diff = rightWeight - leftWeight;
-                const maxWeight = 30; // An arbitrary max for rotation scaling
+                const maxWeight = 30;
                 const rotation = Math.max(-15, Math.min(15, (diff / maxWeight) * 15));
-                
+
                 balanceBeam.style.transform = `rotate(${rotation}deg)`;
             }
 
             // --- EVENT LISTENERS ---
             function addEventListeners() {
-                // Drag and Drop for Desktop
                 document.addEventListener('dragstart', handleDragStart);
                 rightPan.addEventListener('dragover', handleDragOver);
                 rightPan.addEventListener('drop', handleDrop);
                 shapeBank.addEventListener('dragover', handleDragOver);
                 shapeBank.addEventListener('drop', handleReturnToBank);
 
-                // Touch events for Mobile/Tablets
                 document.addEventListener('touchstart', handleTouchStart, { passive: false });
                 document.addEventListener('touchmove', handleTouchMove, { passive: false });
                 document.addEventListener('touchend', handleTouchEnd);
 
-                // Buttons
                 checkBtn.addEventListener('click', checkAnswer);
                 resetBtn.addEventListener('click', resetCurrentPuzzle);
                 nextPuzzleBtn.addEventListener('click', nextPuzzle);
                 fullscreenBtn.addEventListener('click', toggleFullScreen);
             }
-            
+
             // --- DRAG & DROP HANDLERS (MOUSE) ---
             let draggedItem = null;
 
             function handleDragStart(e) {
                 if (!e.target.classList.contains('shape')) return;
                 draggedItem = e.target;
-                
-                // Check if the item being dragged is from the right pan
+
                 if (draggedItem.dataset.pan === 'right') {
                     const index = parseInt(draggedItem.dataset.index);
-                    // Prevent dragging if it's an initial shape
                     if (rightPanShapes[index] && rightPanShapes[index].isInitial) {
                         e.preventDefault();
                         draggedItem = null;
                         return;
                     }
-                    // Only hide the shape if it's being dragged from the pan
                     setTimeout(() => draggedItem.style.display = "none", 0);
                 }
                 e.dataTransfer.setData('text/plain', e.target.dataset.shapeId);
@@ -325,26 +313,22 @@
                 const shapeId = parseInt(e.dataTransfer.getData('text/plain'));
                 if (!shapeId) return;
 
-                // If user is modifying after a check, reset the state
                 if (gameState !== 'playing') {
                     gameState = 'playing';
                     feedbackEl.textContent = '';
                     instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
                 }
 
-                // If an item was dragged from the pan, remove its old instance to prevent duplication.
                 if (draggedItem && draggedItem.dataset.pan === 'right') {
                     const index = parseInt(draggedItem.dataset.index);
                     rightPanShapes.splice(index, 1);
                 }
 
-                // Calculate drop position relative to the pan
                 const rect = rightPan.getBoundingClientRect();
-                const shapeSize = 64; // Approximate size of the shape container
+                const shapeSize = 64;
                 const x = e.clientX - rect.left - (shapeSize / 2);
                 const y = e.clientY - rect.top - (shapeSize / 2);
 
-                // Add the new shape to the pan's data array with coordinates
                 rightPanShapes.push({ id: shapeId, x: x, y: y });
                 renderPans();
                 updateBalance();
@@ -353,9 +337,7 @@
 
             function handleReturnToBank(e) {
                 e.preventDefault();
-                // This acts as a "trash" area. If a shape from the pan is dropped here, it's removed.
                 if (draggedItem && draggedItem.dataset.pan === 'right') {
-                     // If user is modifying after a check, reset the state
                     if (gameState !== 'playing') {
                         gameState = 'playing';
                         feedbackEl.textContent = '';
@@ -368,7 +350,7 @@
                 }
                 draggedItem = null;
             }
-            
+
             // --- TOUCH HANDLERS ---
             let touchDraggedItem = null;
             let ghostEl = null;
@@ -377,33 +359,29 @@
                 const target = e.target.closest('.shape');
                 if (!target) return;
 
-                // Prevent dragging initial shapes on the right pan
                 if (target.dataset.pan === 'right') {
                     const index = parseInt(target.dataset.index);
                     if (rightPanShapes[index] && rightPanShapes[index].isInitial) {
-                        return; // Do not initiate a drag for this element
+                        return;
                     }
                 }
-                
-                // If user is touching a shape to modify their answer, reset the state
+
                 if (gameState !== 'playing') {
                     gameState = 'playing';
                     feedbackEl.textContent = '';
                     instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
                 }
-                
+
                 e.preventDefault();
                 touchDraggedItem = target;
-                
-                // Create ghost element for visual feedback
+
                 ghostEl = target.cloneNode(true);
                 ghostEl.classList.add('shape-ghost');
                 document.body.appendChild(ghostEl);
 
                 const touch = e.targetTouches[0];
                 moveGhost(touch.pageX, touch.pageY);
-                
-                // Only make the original shape transparent if it's being dragged from the pan
+
                 if (touchDraggedItem.dataset.pan === 'right') {
                     target.classList.add('dragging');
                 }
@@ -415,7 +393,7 @@
                 const touch = e.targetTouches[0];
                 moveGhost(touch.pageX, touch.pageY);
             }
-            
+
             function moveGhost(x, y) {
                  if(ghostEl) {
                     ghostEl.style.left = `${x - ghostEl.offsetWidth / 2}px`;
@@ -426,32 +404,42 @@
             function handleTouchEnd(e) {
                 if (!touchDraggedItem) return;
 
-                // Hide the ghost so we can see what element is underneath the drop point
                 if(ghostEl) ghostEl.style.display = 'none';
 
                 const touch = e.changedTouches[0];
                 const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
-                
+
                 const shapeId = parseInt(touchDraggedItem.dataset.shapeId);
+                
+                // --- THIS IS THE FIX ---
+                // Check if shapeId is a valid number before proceeding
+                if (isNaN(shapeId)) {
+                    // Cleanup if the drag was invalid for any reason
+                    touchDraggedItem.classList.remove('dragging');
+                    if (ghostEl) {
+                        ghostEl.remove();
+                        ghostEl = null;
+                    }
+                    touchDraggedItem = null;
+                    return;
+                }
+                // --- END OF FIX ---
+
                 const cameFromPan = touchDraggedItem.dataset.pan === 'right';
 
-                // 1. Remove the shape from its original place if it came from the pan
                 if (cameFromPan) {
                     const index = parseInt(touchDraggedItem.dataset.index);
                     rightPanShapes.splice(index, 1);
                 }
 
-                // 2. Add the shape to the pan if it was dropped there
                 if (rightPan.contains(dropTarget)) {
                     const rect = rightPan.getBoundingClientRect();
-                    const shapeSize = 64; // Approximate size
+                    const shapeSize = 64;
                     const x = touch.clientX - rect.left - (shapeSize / 2);
                     const y = touch.clientY - rect.top - (shapeSize / 2);
                     rightPanShapes.push({ id: shapeId, x: x, y: y });
-                } 
-                // Note: If a shape from the pan is dropped anywhere else, it is now removed.
+                }
 
-                // --- Cleanup ---
                 touchDraggedItem.classList.remove('dragging');
                 if (ghostEl) {
                     ghostEl.remove();
@@ -486,12 +474,11 @@
 
             function resetCurrentPuzzle() {
                 gameState = 'playing';
-                // Reset right pan shapes to ONLY the initial ones for the puzzle
                 const panWidth = rightPan.offsetWidth;
-                rightPanShapes = puzzles[currentPuzzleIndex].right.map(shape => ({ 
-                    ...shape, 
+                rightPanShapes = puzzles[currentPuzzleIndex].right.map(shape => ({
+                    ...shape,
                     isInitial: true,
-                    x: (panWidth / 2) - 32, // Recalculate center
+                    x: (panWidth / 2) - 32,
                     y: 30
                 }));
                 renderPans();
@@ -499,19 +486,21 @@
                 feedbackEl.textContent = '';
                 instructionEl.textContent = 'Drag shapes to the right pan to balance the scale!';
             }
-            
+
             function nextPuzzle() {
                 currentPuzzleIndex = (currentPuzzleIndex + 1) % puzzles.length;
                 loadPuzzle(currentPuzzleIndex);
             }
-            
+
             function toggleFullScreen() {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen().catch(err => {
-                        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
                     });
                 } else {
-                    document.exitFullscreen();
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
                 }
             }
 
@@ -520,11 +509,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
